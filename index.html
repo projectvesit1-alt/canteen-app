@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canteen Crowd Status</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 500px; margin: auto; }
+        .card { background: #1e293b; border-radius: 25px; padding: 25px; text-align: center; border: 1px solid #334155; }
+        .live-label { font-size: 0.8rem; letter-spacing: 2px; color: #94a3b8; text-transform: uppercase; }
+        .number { font-size: 5rem; font-weight: 800; margin: 10px 0; color: #3b82f6; transition: color 0.5s; }
+        #map { height: 280px; width: 100%; border-radius: 20px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="live-label">● Live Canteen Crowd</div>
+            <div class="number" id="crowd-count">--</div>
+            <p id="crowd-status">Loading data...</p>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbzr5WzQN_UNaUlrT98scxxIKRPq6eLbOL22mEhDvfv3e95-JIV0ukdj_rRhDKADW5pl/exec";
+        
+        // SET YOUR COLLEGE COORDINATES HERE
+        const myCollegeLat = 19.045449772694926; 
+        const myCollegeLng = 72.88883856873883;
+
+        const map = L.map('map').setView([myCollegeLat, myCollegeLng], 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        const marker = L.circle([myCollegeLat, myCollegeLng], { radius: 15, fillOpacity: 0.8 }).addTo(map);
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(API_URL);
+                const count = parseInt(await response.text());
+                
+                document.getElementById('crowd-count').innerText = count;
+                const statusText = document.getElementById('crowd-status');
+                const numberText = document.getElementById('crowd-count');
+
+                if (count < 10) {
+                    statusText.innerText = "Quiet - Plenty of space!";
+                    numberText.style.color = "#22c55e"; // Green
+                    marker.setStyle({color: '#22c55e', fillColor: '#22c55e'});
+                } else if (count < 25) {
+                    statusText.innerText = "Moderate - Some tables available.";
+                    numberText.style.color = "#eab308"; // Yellow
+                    marker.setStyle({color: '#eab308', fillColor: '#eab308'});
+                } else {
+                    statusText.innerText = "Busy - Queue is long!";
+                    numberText.style.color = "#ef4444"; // Red
+                    marker.setStyle({color: '#ef4444', fillColor: '#ef4444'});
+                }
+            } catch (e) { console.log("Connection error..."); }
+        }
+
+        setInterval(fetchStatus, 5000);
+        fetchStatus();
+    </script>
+</body>
+</html>

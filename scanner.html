@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Canteen AI Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"></script>
+    <style>
+        body { background: #000; color: white; font-family: sans-serif; text-align: center; margin: 0; overflow: hidden; }
+        video { width: 100%; height: auto; max-height: 70vh; background: #222; }
+        .info { padding: 20px; background: #111; border-top: 2px solid #333; }
+        #count { font-size: 48px; color: #00ff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <video id="webcam" autoplay playsinline></video>
+    <div class="info">
+        <div id="status">Initializing AI...</div>
+        <div id="count">0</div>
+        <div style="font-size: 12px; color: #666;">People Detected</div>
+    </div>
+
+    <script type="module">
+        import { ObjectDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js";
+
+        // REPLACE THIS with your Google Apps Script URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzr5WzQN_UNaUlrT98scxxIKRPq6eLbOL22mEhDvfv3e95-JIV0ukdj_rRhDKADW5pl/exec"; 
+
+        let detector;
+        const video = document.getElementById("webcam");
+
+        async function init() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
+                detector = await ObjectDetector.createFromOptions(vision, {
+                    baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite" },
+                    scoreThreshold: 0.5, runningMode: "VIDEO"
+                });
+                startCamera();
+            } catch (e) { document.getElementById("status").innerText = "AI Load Error"; }
+        }
+
+        async function startCamera() {
+            const constraints = { video: { facingMode: "environment" } };
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    video.srcObject = stream;
+                    document.getElementById("status").innerText = "SCANNER ACTIVE";
+                    video.addEventListener("loadeddata", predict);
+                })
+                .catch((err) => { document.getElementById("status").innerText = "Camera Access Denied"; });
+        }
+
+        async function predict() {
+            const results = await detector.detectForVideo(video, performance.now());
+            const people = results.detections.filter(d => d.categories[0].categoryName === 'person').length;
+            document.getElementById("count").innerText = people;
+
+            // Send data to Google Sheet
+            fetch(API_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ count: people }) });
+
+            setTimeout(() => { window.requestAnimationFrame(predict); }, 2000);
+        }
+        init();
+    </script>
+</body>
+</html>
